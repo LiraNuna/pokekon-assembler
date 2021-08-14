@@ -44,9 +44,15 @@ instruction_table = {
 
 if __name__ == '__main__':
     with open('test.as', 'rt') as f:
-        while line := f.readline():
+        for line_number, line in enumerate(f):
+            if not line.strip():
+                continue
+
             instruction, _, arguments = line.partition(' ')
             instruction = instruction.lower().strip()
             arguments = list(filter(None, arguments.lower().strip().split(' ')))
 
-            print(hex(instruction_table[instruction](arguments)))
+            try:
+                print(hex(instruction_table[instruction](arguments)))
+            except ParseError as p:
+                print(f"Parse error on line {line_number}: {p}")
