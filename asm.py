@@ -148,6 +148,11 @@ if __name__ == '__main__':
             arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().split(','))))
 
             try:
-                print(instruction_table[instruction](arguments))
+                result = instruction_table[instruction](arguments)
+                for byte in result:
+                    print(('0' + hex(byte).replace('0x', ''))[-2:], end=' ')
+                print()
+            except KeyError:
+                print(f"unknown instruction: {instruction}")
             except ParseError as p:
                 print(f"Parse error on line {line_number}: {p}")
