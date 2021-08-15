@@ -64,6 +64,33 @@ def aniw(arguments):
     return bytearray([0x05, parse_literal_byte(waddress), parse_literal_byte(byte)])
 
 
+def ani(arguments):
+    register, byte = check_argument_count('ani', arguments, 2)
+    byte = parse_literal_byte(byte)
+
+    if register == 'a':
+        return bytearray([0x07, byte])
+
+    extended_registers = {
+        'v': 0x08,
+        'a': 0x09,
+        'b': 0x0A,
+        'c': 0x0B,
+        'd': 0x0C,
+        'e': 0x0D,
+        'h': 0x0E,
+        'l': 0x0F,
+        'pa': 0x88,
+        'pb': 0x89,
+        'pc': 0x8A,
+        'mk': 0x8B,
+    }
+    if register not in extended_registers:
+        raise ParseError(f'invalid register {register} for instruction')
+
+    return bytearray([0x64, extended_registers[register]])
+
+
 instruction_table = {
     'nop': no_arg('nop', 0x00),
     'hlt': no_arg('hlt', 0x01),
@@ -71,6 +98,7 @@ instruction_table = {
     'dcx': high_4bit('dcx', 0x03),
     'lxi': high_4bit('inx', 0x04),
     'aniw': aniw,
+    'ani': ani,
 }
 
 if __name__ == '__main__':
@@ -81,7 +109,7 @@ if __name__ == '__main__':
 
             instruction, _, arguments = line.partition(' ')
             instruction = instruction.lower().strip()
-            arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().strip().split(','))))
+            arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().split(','))))
 
             try:
                 print(instruction_table[instruction](arguments))
