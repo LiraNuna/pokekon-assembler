@@ -67,31 +67,34 @@ def iw_op(name, mask):
     return encoder
 
 
-def ani(arguments):
-    register, byte = check_argument_count('ani', arguments, 2)
-    byte = parse_literal_byte(byte)
-
-    if register == 'a':
-        return bytearray([0x07, byte])
-
-    extended_registers = {
-        'v': 0x08,
-        'a': 0x09,
-        'b': 0x0A,
-        'c': 0x0B,
-        'd': 0x0C,
-        'e': 0x0D,
-        'h': 0x0E,
-        'l': 0x0F,
-        'pa': 0x88,
-        'pb': 0x89,
-        'pc': 0x8A,
-        'mk': 0x8B,
+def imm_data_transfer(name, opcode):
+    registers = {
+        'v': 0x00,
+        'a': 0x01,
+        'b': 0x02,
+        'c': 0x03,
+        'd': 0x04,
+        'e': 0x05,
+        'h': 0x06,
+        'l': 0x07,
+        # special registers
+        'pa': 0x80,
+        'pb': 0x81,
+        'pc': 0x82,
+        'mk': 0x83,
     }
-    if register not in extended_registers:
-        raise ParseError(f'invalid register {register} for instruction')
 
-    return bytearray([0x64, extended_registers[register]])
+    def encoder(arguments):
+        register, byte = check_argument_count(name, arguments, 2)
+        if register not in registers:
+            raise ParseError(f'unknown register {register} for {name}')
+
+        if register == 'a':
+            return bytearray([0x06 | (opcode & 1) | ((opcode & 0x0E) << 3), parse_literal_byte(byte)])
+
+        return bytearray([0x64, (opcode << 3) | registers[register], parse_literal_byte(byte)])
+
+    return encoder
 
 
 instruction_table = {
@@ -102,7 +105,22 @@ instruction_table = {
     'inx': high_4bit('inx', 0x02),
     'dcx': high_4bit('dcx', 0x03),
     'lxi': high_4bit('inx', 0x04),
-    'ani': ani,
+
+    'ani': imm_data_transfer('ani', 0x01),
+    'xri': imm_data_transfer('xri', 0x02),
+    'ori': imm_data_transfer('ori', 0x03),
+    'adinc': imm_data_transfer('adinc', 0x04),
+    'gti': imm_data_transfer('gti', 0x05),
+    'suinb': imm_data_transfer('suinb', 0x06),
+    'lti': imm_data_transfer('lti', 0x07),
+    'adi': imm_data_transfer('adi', 0x08),
+    'oni': imm_data_transfer('oni', 0x09),
+    'aci': imm_data_transfer('aci', 0x0A),
+    'offi': imm_data_transfer('offi', 0x0B),
+    'sui': imm_data_transfer('sui', 0x0C),
+    'nei': imm_data_transfer('nei', 0x0D),
+    'sbi': imm_data_transfer('sbi', 0x0E),
+    'eqi': imm_data_transfer('eqi', 0x0F),
 
     'aniw': iw_op('aniw', 0x05),
     'oriw': iw_op('oriw', 0x15),
