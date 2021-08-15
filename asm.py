@@ -1,3 +1,6 @@
+RANGE_BYTE = range(0, 256)
+
+
 class ParseError(IOError):
     pass
 
@@ -9,13 +12,25 @@ def check_argument_count(name, arguments, size):
     return arguments
 
 
-def parse_byte(argument):
-    if (argument.startswith('0x')):
-        return int(argument, 16)
-    if argument.startswith('0'):
-        return int(argument, 7)
+def parse_int(string, base, valid_range):
+    try:
+        value = int(string, base)
+    except ValueError as ve:
+        raise ParseError(f'invalid literal with base {base}: {string}')
 
-    return int(argument, 10)
+    if value not in valid_range:
+        raise ParseError(f'literal {string} ({value}) not in {valid_range}')
+
+    return value
+
+
+def parse_literal_byte(argument):
+    if (argument.startswith('0x')):
+        return parse_int(argument, 16, RANGE_BYTE)
+    if argument.startswith('0'):
+        return parse_int(argument, 7, RANGE_BYTE)
+
+    return parse_int(argument, 10, RANGE_BYTE)
 
 
 def no_arg(name, value):
@@ -46,7 +61,7 @@ def high_4bit(name, mask):
 
 def aniw(arguments):
     waddress, byte = check_argument_count('aniw', arguments, 2)
-    return bytearray([0x05, parse_byte(waddress), parse_byte(byte)])
+    return bytearray([0x05, parse_literal_byte(waddress), parse_literal_byte(byte)])
 
 
 instruction_table = {
@@ -58,7 +73,6 @@ instruction_table = {
     'aniw': aniw,
 }
 
-
 if __name__ == '__main__':
     with open('test.as', 'rt') as f:
         for line_number, line in enumerate(f):
@@ -67,7 +81,7 @@ if __name__ == '__main__':
 
             instruction, _, arguments = line.partition(' ')
             instruction = instruction.lower().strip()
-            arguments = list(filter(None, arguments.lower().strip().split(',')))
+            arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().strip().split(','))))
 
             try:
                 print(instruction_table[instruction](arguments))
