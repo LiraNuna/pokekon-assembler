@@ -100,7 +100,12 @@ def imm_data_transfer(name, opcode):
 instruction_table = {
     'nop': no_arg('nop', 0x00),
     'ret': no_arg('ret', 0x08),
+    'rets': no_arg('ret', 0x18),
+    'stm': no_arg('stm', 0x19),
     'sio': no_arg('sio', 0x09),
+    'daa': no_arg('daa', 0x61),
+    'reti': no_arg('reti', 0x62),
+    'jb': no_arg('jb', 0x73),
 
     'inx': high_4bit('inx', 0x02),
     'dcx': high_4bit('dcx', 0x03),
