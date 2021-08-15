@@ -67,6 +67,14 @@ def iw_op(name, mask):
     return encoder
 
 
+def wa_op(name, mask):
+    def encoder(arguments):
+        waddress, = check_argument_count(name, arguments, 1)
+        return bytearray([mask, parse_literal_byte(waddress)])
+
+    return encoder
+
+
 def imm_data_transfer(name, opcode):
     registers = {
         'v': 0x00,
@@ -117,6 +125,11 @@ instruction_table = {
 
     'inx': high_4bit('inx', 0x02),
     'dcx': high_4bit('dcx', 0x03),
+
+    'inrw': wa_op('inrw', 0x20),
+    'ldaw': wa_op('ldaw', 0x28),
+    'dcrw': wa_op('dcrw', 0x30),
+    'staw': wa_op('staw', 0x38),
 
     'ani': imm_data_transfer('ani', 0x01),
     'xri': imm_data_transfer('xri', 0x02),
