@@ -2,12 +2,26 @@ class ParseError(IOError):
     pass
 
 
+def check_argument_count(name, arguments, size):
+    if len(arguments) != size:
+        raise ParseError(f'instruction {name} takes {size} arguments, {len(arguments)} given')
+
+    return arguments
+
+
+def parse_byte(argument):
+    if (argument.startswith('0x')):
+        return int(argument, 16)
+    if argument.startswith('0'):
+        return int(argument, 7)
+
+    return int(argument, 10)
+
+
 def no_arg(name, value):
     def encoder(arguments):
-        if len(arguments) != 0:
-            raise ParseError(f'instruction {name} takes no arguments')
-
-        return value
+        check_argument_count(name, arguments, 0)
+        return bytearray([value])
 
     return encoder
 
@@ -21,16 +35,18 @@ def high_4bit(name, mask):
     }
 
     def encoder(arguments):
-        if len(arguments) != 1:
-            raise ParseError(f'instruction {name} takes one arguments')
-
-        register, = arguments
+        register, = check_argument_count(name, arguments, 1)
         if register not in register_map:
             raise ParseError(f'unknown register {register} for {name}')
 
-        return mask | register_map[register]
+        return bytearray([mask | register_map[register]])
 
     return encoder
+
+
+def aniw(arguments):
+    waddress, byte = check_argument_count('aniw', arguments, 2)
+    return bytearray([0x05, parse_byte(waddress), parse_byte(byte)])
 
 
 instruction_table = {
@@ -39,6 +55,7 @@ instruction_table = {
     'inx': high_4bit('inx', 0x02),
     'dcx': high_4bit('dcx', 0x03),
     'lxi': high_4bit('inx', 0x04),
+    'aniw': aniw,
 }
 
 
@@ -50,9 +67,9 @@ if __name__ == '__main__':
 
             instruction, _, arguments = line.partition(' ')
             instruction = instruction.lower().strip()
-            arguments = list(filter(None, arguments.lower().strip().split(' ')))
+            arguments = list(filter(None, arguments.lower().strip().split(',')))
 
             try:
-                print(hex(instruction_table[instruction](arguments)))
+                print(instruction_table[instruction](arguments))
             except ParseError as p:
                 print(f"Parse error on line {line_number}: {p}")
