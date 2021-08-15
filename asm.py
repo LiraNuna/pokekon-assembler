@@ -121,6 +121,10 @@ if __name__ == '__main__':
             if not line.strip():
                 continue
 
+            line = line.strip()
+            if line.startswith('#'):
+                continue
+
             instruction, _, arguments = line.partition(' ')
             instruction = instruction.lower().strip()
             arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().split(','))))
