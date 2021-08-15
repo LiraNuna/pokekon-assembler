@@ -122,7 +122,7 @@ if __name__ == '__main__':
                 continue
 
             line = line.strip()
-            if line.startswith('#'):
+            if line.startswith('#') or line.startswith('//'):
                 continue
 
             instruction, _, arguments = line.partition(' ')
