@@ -99,6 +99,8 @@ instruction_table = {
     'lxi': high_4bit('inx', 0x04),
     'aniw': aniw,
     'ani': ani,
+    'ret': no_arg('ret', 0x08),
+    'sio': no_arg('sio', 0x09),
 }
 
 if __name__ == '__main__':
