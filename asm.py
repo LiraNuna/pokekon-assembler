@@ -96,7 +96,6 @@ def ani(arguments):
 
 instruction_table = {
     'nop': no_arg('nop', 0x00),
-    'hlt': no_arg('hlt', 0x01),
     'ret': no_arg('ret', 0x08),
     'sio': no_arg('sio', 0x09),
 
