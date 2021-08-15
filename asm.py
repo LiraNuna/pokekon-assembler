@@ -118,11 +118,12 @@ instruction_table = {
 if __name__ == '__main__':
     with open('test.as', 'rt') as f:
         for line_number, line in enumerate(f):
-            if not line.strip():
-                continue
-
             line = line.strip()
-            if line.startswith('#') or line.startswith('//'):
+            if not line:
+                continue
+            if line.startswith('#'):
+                continue
+            if line.startswith('//'):
                 continue
 
             instruction, _, arguments = line.partition(' ')
