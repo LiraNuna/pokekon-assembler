@@ -109,7 +109,6 @@ instruction_table = {
 
     'inx': high_4bit('inx', 0x02),
     'dcx': high_4bit('dcx', 0x03),
-    'lxi': high_4bit('inx', 0x04),
 
     'ani': imm_data_transfer('ani', 0x01),
     'xri': imm_data_transfer('xri', 0x02),
