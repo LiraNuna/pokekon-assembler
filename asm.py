@@ -44,9 +44,9 @@ def no_arg(name, value):
 def high_4bit(name, mask):
     register_map = {
         'sp': 0,
-        'b': 1 << 4,
-        'd': 2 << 4,
-        'h': 3 << 4,
+        'bc': 1 << 4,
+        'de': 2 << 4,
+        'hl': 3 << 4,
     }
 
     def encoder(arguments):
