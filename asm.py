@@ -36,7 +36,7 @@ def parse_literal_byte(argument):
 def no_arg(name, value):
     def encoder(arguments):
         check_argument_count(name, arguments, 0)
-        return bytearray([value])
+        return bytearray(value)
 
     return encoder
 
@@ -98,14 +98,22 @@ def imm_data_transfer(name, opcode):
 
 
 instruction_table = {
-    'nop': no_arg('nop', 0x00),
-    'ret': no_arg('ret', 0x08),
-    'rets': no_arg('ret', 0x18),
-    'stm': no_arg('stm', 0x19),
-    'sio': no_arg('sio', 0x09),
-    'daa': no_arg('daa', 0x61),
-    'reti': no_arg('reti', 0x62),
-    'jb': no_arg('jb', 0x73),
+    'nop': no_arg('nop', [0x00]),
+    'ret': no_arg('ret', [0x08]),
+    'rets': no_arg('ret', [0x18]),
+    'stm': no_arg('stm', [0x19]),
+    'sio': no_arg('sio', [0x09]),
+    'daa': no_arg('daa', [0x61]),
+    'reti': no_arg('reti', [0x62]),
+    'jb': no_arg('jb', [0x73]),
+    'ei': no_arg('ei', [0x48, 0x20]),
+    'di': no_arg('di', [0x48, 0x24]),
+    'clc': no_arg('clc', [0x48, 0x2A]),
+    'stc': no_arg('stc', [0x48, 0x2B]),
+    'pex': no_arg('pex', [0x48, 0x2D]),
+    'rld': no_arg('rld', [0x48, 0x38]),
+    'rrd': no_arg('rrd', [0x48, 0x39]),
+    'per': no_arg('per', [0x48, 0x3C]),
 
     'inx': high_4bit('inx', 0x02),
     'dcx': high_4bit('dcx', 0x03),
