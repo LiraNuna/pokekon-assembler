@@ -59,9 +59,12 @@ def high_4bit(name, mask):
     return encoder
 
 
-def aniw(arguments):
-    waddress, byte = check_argument_count('aniw', arguments, 2)
-    return bytearray([0x05, parse_literal_byte(waddress), parse_literal_byte(byte)])
+def iw_op(name, mask):
+    def encoder(arguments):
+        waddress, byte = check_argument_count(name, arguments, 2)
+        return bytearray([mask, parse_literal_byte(waddress), parse_literal_byte(byte)])
+
+    return encoder
 
 
 def ani(arguments):
@@ -94,13 +97,22 @@ def ani(arguments):
 instruction_table = {
     'nop': no_arg('nop', 0x00),
     'hlt': no_arg('hlt', 0x01),
+    'ret': no_arg('ret', 0x08),
+    'sio': no_arg('sio', 0x09),
+
     'inx': high_4bit('inx', 0x02),
     'dcx': high_4bit('dcx', 0x03),
     'lxi': high_4bit('inx', 0x04),
-    'aniw': aniw,
     'ani': ani,
-    'ret': no_arg('ret', 0x08),
-    'sio': no_arg('sio', 0x09),
+
+    'aniw': iw_op('aniw', 0x05),
+    'oriw': iw_op('oriw', 0x15),
+    'gtiw': iw_op('gtiw', 0x25),
+    'ltiw': iw_op('ltiw', 0x35),
+    'oniw': iw_op('oniw', 0x45),
+    'offiw': iw_op('offiw', 0x55),
+    'neiw': iw_op('neiw', 0x65),
+    'eqiw': iw_op('eqiw', 0x75),
 }
 
 if __name__ == '__main__':
