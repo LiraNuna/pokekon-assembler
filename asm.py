@@ -1,4 +1,5 @@
-RANGE_BYTE = range(0, 256)
+RANGE_BYTE = range(0, 1 << 8)
+WORD_RANGE = range(0, 1 << 16)
 
 
 class ParseError(IOError):
@@ -31,6 +32,15 @@ def parse_literal_byte(argument):
         return parse_int(argument, 7, RANGE_BYTE)
 
     return parse_int(argument, 10, RANGE_BYTE)
+
+
+def parse_literal_word(argument):
+    if (argument.startswith('0x')):
+        return parse_int(argument, 16, WORD_RANGE)
+    if argument.startswith('0'):
+        return parse_int(argument, 7, WORD_RANGE)
+
+    return parse_int(argument, 10, WORD_RANGE)
 
 
 def no_arg(name, value):
@@ -71,6 +81,25 @@ def wa_op(name, mask):
     def encoder(arguments):
         waddress, = check_argument_count(name, arguments, 1)
         return bytearray([mask, parse_literal_byte(waddress)])
+
+    return encoder
+
+
+def wr_word_op(name, mask):
+    register_map = {
+        'sp': 0,
+        'bc': 1 << 4,
+        'de': 2 << 4,
+        'hl': 3 << 4,
+    }
+
+    def encoder(arguments):
+        register, address = check_argument_count(name, arguments, 2)
+        if register not in register_map:
+            raise ParseError(f'unknown register {register} for {name}')
+
+        address = parse_literal_word(address)
+        return bytearray([mask | register_map[register]]) + address.to_bytes(2, byteorder='little')
 
     return encoder
 
@@ -131,6 +160,8 @@ instruction_table = {
     'dcrw': wa_op('dcrw', 0x30),
     'staw': wa_op('staw', 0x38),
 
+    'lxi': wr_word_op('lxi', 0x04),
+
     'ani': imm_data_transfer('ani', 0x01),
     'xri': imm_data_transfer('xri', 0x02),
     'ori': imm_data_transfer('ori', 0x03),
@@ -158,7 +189,7 @@ instruction_table = {
 }
 
 if __name__ == '__main__':
-    with open('test.as', 'rt') as f:
+    with open('test.as', 'rt') as f, open('out.bin', 'wb') as out:
         for line_number, line in enumerate(f):
             line = line.strip()
             if not line:
@@ -177,6 +208,7 @@ if __name__ == '__main__':
                 for byte in result:
                     print(('0' + hex(byte).replace('0x', ''))[-2:], end=' ')
                 print()
+                out.write(result)
             except KeyError:
                 print(f"unknown instruction: {instruction}")
             except ParseError as p:
