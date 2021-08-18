@@ -267,6 +267,25 @@ def mvi(name):
     return encoder
 
 
+def sknit(name):
+    irqs = {
+        'f0': 0x10,
+        'ft': 0x11,
+        'f1': 0x12,
+        'f2': 0x13,
+        'fS': 0x14,
+    }
+
+    def encoder(arguments):
+        irq, = check_argument_count(name, arguments, 1)
+        if irq not in irqs:
+            raise ParseError(f'unknown irq {irq} for {name}')
+
+        return bytearray([irqs[irq]])
+
+    return encoder
+
+
 def calt(name):
     def encoder(arguments):
         taddr, = check_argument_count(name, arguments, 1)
@@ -305,6 +324,8 @@ instruction_table = {
 
     'rll': prefix(0x48, acc_op('rll', 0x30)),
     'rlr': prefix(0x48, acc_op('rlr', 0x31)),
+
+    'sknit': prefix(0x48, sknit('sknit')),
 
     'push': stack_op('push', 0x0E),
     'pop': stack_op('pop', 0x0F),
