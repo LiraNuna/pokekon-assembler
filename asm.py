@@ -162,6 +162,16 @@ def calt(name):
     return encoder
 
 
+def calf(name):
+    def encoder(arguments):
+        faddr, = check_argument_count(name, arguments, 1)
+        faddr = parse_literal(faddr, range(0x800, 0x1000))
+
+        return bytearray([0x70 | (faddr >> 8), faddr & 0xFF])
+
+    return encoder
+
+
 instruction_table = {
     'nop': no_arg('nop', [0x00]),
     'ret': no_arg('ret', [0x08]),
@@ -219,6 +229,7 @@ instruction_table = {
     'eqiw': iw_op('eqiw', 0x75),
 
     'calt': calt('calt'),
+    'calf': calf('calf'),
 }
 
 if __name__ == '__main__':
