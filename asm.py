@@ -235,6 +235,24 @@ def word_acc_op(name, mask):
     return encoder
 
 
+def mvi(name):
+    registers = {
+        'a': 0x01,
+        'b': 0x02,
+        'c': 0x03,
+        'd': 0x04,
+        'e': 0x05,
+        'h': 0x06,
+        'l': 0x07,
+    }
+
+    def encoder(arguments):
+        register, immediate = check_argument_count(name, arguments, 2)
+        return bytearray([0x68 | registers[register], parse_literal_byte(immediate)])
+
+    return encoder
+
+
 def calt(name):
     def encoder(arguments):
         taddr, = check_argument_count(name, arguments, 1)
@@ -351,6 +369,7 @@ instruction_table = {
     'neiw': iw_op('neiw', 0x65),
     'eqiw': iw_op('eqiw', 0x75),
 
+    'mvi': mvi('mvi'),
     'calt': calt('calt'),
     'calf': calf('calf'),
 }
