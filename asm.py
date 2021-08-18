@@ -273,7 +273,7 @@ def sknit(name):
         'ft': 0x11,
         'f1': 0x12,
         'f2': 0x13,
-        'fS': 0x14,
+        'fs': 0x14,
     }
 
     def encoder(arguments):
@@ -282,6 +282,22 @@ def sknit(name):
             raise ParseError(f'unknown irq {irq} for {name}')
 
         return bytearray([irqs[irq]])
+
+    return encoder
+
+
+def skn(name):
+    flags = {
+        'cy': 0x1A,
+        'z': 0x1C,
+    }
+
+    def encoder(arguments):
+        flag, = check_argument_count(name, arguments, 1)
+        if flag not in flags:
+            raise ParseError(f'unknown irq {flag} for {name}')
+
+        return bytearray([flags[flag]])
 
     return encoder
 
@@ -325,6 +341,7 @@ instruction_table = {
     'rll': prefix(0x48, acc_op('rll', 0x30)),
     'rlr': prefix(0x48, acc_op('rlr', 0x31)),
 
+    'skn': prefix(0x48, skn('skn')),
     'sknit': prefix(0x48, sknit('sknit')),
 
     'push': stack_op('push', 0x0E),
