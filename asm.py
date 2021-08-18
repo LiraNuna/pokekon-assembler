@@ -42,6 +42,13 @@ def parse_literal_word(argument):
     return parse_literal(argument, WORD_RANGE)
 
 
+def prefix(value, op_encoder):
+    def encoder(arguments):
+        return bytearray([value]) + op_encoder(arguments)
+
+    return encoder
+
+
 def no_arg(name, value):
     def encoder(arguments):
         check_argument_count(name, arguments, 0)
@@ -219,6 +226,21 @@ instruction_table = {
 
     'ldax': word_acc_op('ldax', 0x28),
     'stax': word_acc_op('stax', 0x38),
+    'anax': prefix(0x70, word_acc_op('anax', 0x88)),
+    'xrax': prefix(0x70, word_acc_op('xrax', 0x90)),
+    'orax': prefix(0x70, word_acc_op('orax', 0x98)),
+    'addncx': prefix(0x70, word_acc_op('addncx', 0xA0)),
+    'gtax': prefix(0x70, word_acc_op('gtax', 0xA8)),
+    'subnbx': prefix(0x70, word_acc_op('subnbx', 0xB0)),
+    'ltax': prefix(0x70, word_acc_op('ltax', 0xB8)),
+    'addx': prefix(0x70, word_acc_op('addx', 0xC0)),
+    'onax': prefix(0x70, word_acc_op('addx', 0xC8)),
+    'adcx': prefix(0x70, word_acc_op('adcx', 0xD0)),
+    'offax': prefix(0x70, word_acc_op('offax', 0xD8)),
+    'subx': prefix(0x70, word_acc_op('subx', 0xE0)),
+    'neax': prefix(0x70, word_acc_op('neax', 0xE8)),
+    'sbbx': prefix(0x70, word_acc_op('sbbx', 0xF0)),
+    'eqax': prefix(0x70, word_acc_op('eqax', 0xF8)),
 
     'lxi': wr_word_op('lxi', 0x04),
 
