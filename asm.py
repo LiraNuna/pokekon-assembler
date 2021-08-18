@@ -117,6 +117,17 @@ def abc_op(name, mask):
     return encoder
 
 
+def acc_op(name, mask):
+    def encoder(arguments):
+        register, = check_argument_count(name, arguments, 1)
+        if register != 'a':
+            raise ParseError(f'unknown register {register} for {name}')
+
+        return bytearray([mask])
+
+    return encoder
+
+
 def reg_acc_op(name, mask):
     registers = {
         ('v', 'a'): 0x00,
@@ -288,6 +299,9 @@ instruction_table = {
     'rld': prefix(0x48, no_arg('rld', 0x38)),
     'rrd': prefix(0x48, no_arg('rrd', 0x39)),
     'per': prefix(0x48, no_arg('per', 0x3C)),
+
+    'rll': prefix(0x48, acc_op('rll', 0x30)),
+    'rlr': prefix(0x48, acc_op('rlr', 0x31)),
 
     'push': stack_op('push', 0x0E),
     'pop': stack_op('pop', 0x0F),
