@@ -108,6 +108,36 @@ def abc_op(name, mask):
     return encoder
 
 
+def reg_acc_op(name, mask):
+    registers = {
+        ('v', 'a'): 0x00,
+        ('a', 'a'): 0x01,
+        ('b', 'a'): 0x02,
+        ('c', 'a'): 0x03,
+        ('d', 'a'): 0x04,
+        ('e', 'a'): 0x05,
+        ('h', 'a'): 0x06,
+        ('l', 'a'): 0x07,
+
+        ('a', 'v'): 0x80,
+        ('a', 'b'): 0x82,
+        ('a', 'c'): 0x83,
+        ('a', 'd'): 0x84,
+        ('a', 'e'): 0x85,
+        ('a', 'h'): 0x86,
+        ('a', 'l'): 0x87,
+    }
+
+    def encoder(arguments):
+        regs = tuple(check_argument_count(name, arguments, 2))
+        if regs not in registers:
+            raise ParseError(f'invalid argument pair {regs} for {name}')
+
+        return bytearray([0x60, mask | registers[regs]])
+
+    return encoder
+
+
 def wr_word_op(name, mask):
     register_map = {
         'sp': 0,
@@ -259,6 +289,20 @@ instruction_table = {
     'nei': imm_data_transfer('nei', 0x0D),
     'sbi': imm_data_transfer('sbi', 0x0E),
     'eqi': imm_data_transfer('eqi', 0x0F),
+
+    'ana': reg_acc_op('ana', 0x08),
+    'xra': reg_acc_op('xra', 0x10),
+    'ora': reg_acc_op('ora', 0x18),
+    'addnc': reg_acc_op('addnc', 0x20),
+    'gta': reg_acc_op('gta', 0x28),
+    'subnb': reg_acc_op('subnb', 0x30),
+    'lta': reg_acc_op('lta', 0x38),
+    'add': reg_acc_op('add', 0x40),
+    'adc': reg_acc_op('adc', 0x50),
+    'sub': reg_acc_op('sub', 0x60),
+    'nea': reg_acc_op('nea', 0x68),
+    'sbb': reg_acc_op('sbb', 0x70),
+    'eqa': reg_acc_op('eqa', 0x78),
 
     'aniw': iw_op('aniw', 0x05),
     'oriw': iw_op('oriw', 0x15),
