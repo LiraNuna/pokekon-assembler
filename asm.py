@@ -59,10 +59,10 @@ def no_arg(name, value):
 
 def high_4bit(name, mask):
     register_map = {
-        'sp': 0,
-        'bc': 1 << 4,
-        'de': 2 << 4,
-        'hl': 3 << 4,
+        'sp': 0x00,
+        'bc': 0x10,
+        'de': 0x20,
+        'hl': 0x30,
     }
 
     def encoder(arguments):
@@ -71,6 +71,15 @@ def high_4bit(name, mask):
             raise ParseError(f'unknown register {register} for {name}')
 
         return bytearray([mask | register_map[register]])
+
+    return encoder
+
+
+def data_tfr_op(name, mask):
+    def encoder(arguments):
+        address, = check_argument_count(name, arguments, 1)
+        address = parse_literal_word(address)
+        return bytearray([0x70, mask]) + address.to_bytes(2, byteorder='little')
 
     return encoder
 
@@ -293,6 +302,14 @@ instruction_table = {
     'sbbx': prefix(0x70, word_acc_op('sbbx', 0xF0)),
     'eqax': prefix(0x70, word_acc_op('eqax', 0xF8)),
 
+    'sspd': data_tfr_op('sspd', 0x0E),
+    'lspd': data_tfr_op('lspd', 0x0F),
+    'sbcd': data_tfr_op('sbcd', 0x1E),
+    'lbcd': data_tfr_op('lbcd', 0x1F),
+    'sded': data_tfr_op('sded', 0x2E),
+    'lded': data_tfr_op('lded', 0x2F),
+    'shld': data_tfr_op('shld', 0x3E),
+    'lhld': data_tfr_op('lhld', 0x3F),
     'lxi': wr_word_op('lxi', 0x04),
 
     'ani': imm_data_transfer('ani', 0x01),
