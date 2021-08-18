@@ -259,6 +259,9 @@ def mvi(name):
 
     def encoder(arguments):
         register, immediate = check_argument_count(name, arguments, 2)
+        if register not in registers:
+            raise ParseError(f'unknown register {register} for {name}')
+
         return bytearray([0x68 | registers[register], parse_literal_byte(immediate)])
 
     return encoder
