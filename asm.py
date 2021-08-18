@@ -84,6 +84,23 @@ def wa_op(name, mask):
     return encoder
 
 
+def abc_op(name, mask):
+    registers = {
+        'a': 0x01,
+        'b': 0x02,
+        'c': 0x03,
+    }
+
+    def encoder(arguments):
+        register, = check_argument_count(name, arguments, 1)
+        if register not in registers:
+            raise ParseError(f'unknown register {register} for {name}')
+
+        return bytearray([mask | registers[register]])
+
+    return encoder
+
+
 def wr_word_op(name, mask):
     register_map = {
         'sp': 0,
@@ -192,6 +209,8 @@ instruction_table = {
 
     'inx': high_4bit('inx', 0x02),
     'dcx': high_4bit('dcx', 0x03),
+    'inr': abc_op('inr', 0x40),
+    'dcr': abc_op('dcr', 0x50),
 
     'inrw': wa_op('inrw', 0x20),
     'ldaw': wa_op('ldaw', 0x28),
