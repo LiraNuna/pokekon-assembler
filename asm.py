@@ -246,6 +246,80 @@ def word_acc_op(name, mask):
     return encoder
 
 
+def mov(name):
+    registers = {
+        'v': 0x68,
+        'a': 0x69,
+        'b': 0x6A,
+        'c': 0x6B,
+        'd': 0x6C,
+        'e': 0x6D,
+        'h': 0x6E,
+        'l': 0x6F,
+    }
+
+    register_pairs = {
+        ('a', 'b'): [0x0A],
+        ('a', 'c'): [0x0B],
+        ('a', 'd'): [0x0C],
+        ('a', 'e'): [0x0D],
+        ('a', 'h'): [0x0E],
+        ('a', 'l'): [0x0F],
+
+        ('b', 'a'): [0x1A],
+        ('c', 'a'): [0x1B],
+        ('d', 'a'): [0x1C],
+        ('e', 'a'): [0x1D],
+        ('h', 'a'): [0x1E],
+        ('l', 'a'): [0x1F],
+
+        ('a', 'pa'): [0x4C, 0xC0],
+        ('a', 'pb'): [0x4C, 0xC1],
+        ('a', 'pc'): [0x4C, 0xC2],
+        ('a', 'mk'): [0x4C, 0xC3],
+        ('a', 'mb'): [0x4C, 0xC4],
+        ('a', 'mc'): [0x4C, 0xC5],
+        ('a', 'tm0'): [0x4C, 0xC6],
+        ('a', 'tm1'): [0x4C, 0xC7],
+        ('a', 's'): [0x4C, 0xC8],
+        ('a', 'tmm'): [0x4C, 0xC9],
+
+        ('pa', 'a'): [0x4D, 0xC0],
+        ('pb', 'a'): [0x4D, 0xC1],
+        ('pc', 'a'): [0x4D, 0xC2],
+        ('mk', 'a'): [0x4D, 0xC3],
+        ('mb', 'a'): [0x4D, 0xC4],
+        ('mc', 'a'): [0x4D, 0xC5],
+        ('tm0', 'a'): [0x4D, 0xC6],
+        ('tm1', 'a'): [0x4D, 0xC7],
+        ('s', 'a'): [0x4D, 0xC8],
+        ('tmm', 'a'): [0x4D, 0xC9],
+    }
+
+    def encoder(arguments):
+        # First, assume reg, reg
+        register_pair = tuple(check_argument_count(name, arguments, 2))
+        if register_pair in register_pairs:
+            return bytearray(register_pairs[register_pair])
+
+        # Second, assume register, address
+        register, address = register_pair
+        if register in registers:
+            address = parse_literal_word(address)
+            return bytearray([0x70, 0x00 | registers[register]]) + address.to_bytes(2, byteorder='little')
+
+        # Third, assume address, register
+        address, register = register_pair
+        if register in registers:
+            address = parse_literal_word(address)
+            return bytearray([0x70, 0x10 | registers[register]]) + address.to_bytes(2, byteorder='little')
+
+        # Give up
+        raise ParseError(f'unknown arguments {register_pair} for {name}')
+
+    return encoder
+
+
 def mvi(name):
     registers = {
         'a': 0x01,
@@ -424,6 +498,7 @@ instruction_table = {
     'neiw': iw_op('neiw', 0x65),
     'eqiw': iw_op('eqiw', 0x75),
 
+    'mov': mov('mov'),
     'mvi': mvi('mvi'),
     'calt': calt('calt'),
     'calf': calf('calf'),
