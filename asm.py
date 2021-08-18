@@ -134,6 +134,27 @@ def imm_data_transfer(name, opcode):
     return encoder
 
 
+def word_acc_op(name, mask):
+    registers = {
+        'bc': 0x01,
+        'de': 0x02,
+        'hl': 0x03,
+        'de+': 0x04,
+        'hl+': 0x05,
+        'de-': 0x06,
+        'hl-': 0x07,
+    }
+
+    def encoder(arguments):
+        register, = check_argument_count(name, arguments, 1)
+        if register not in registers:
+            raise ParseError(f'unknown register {register} for {name}')
+
+        return bytearray([mask | registers[register]])
+
+    return encoder
+
+
 instruction_table = {
     'nop': no_arg('nop', [0x00]),
     'ret': no_arg('ret', [0x08]),
@@ -159,6 +180,9 @@ instruction_table = {
     'ldaw': wa_op('ldaw', 0x28),
     'dcrw': wa_op('dcrw', 0x30),
     'staw': wa_op('staw', 0x38),
+
+    'ldax': word_acc_op('ldax', 0x28),
+    'stax': word_acc_op('stax', 0x38),
 
     'lxi': wr_word_op('lxi', 0x04),
 
