@@ -25,22 +25,21 @@ def parse_int(string, base, valid_range):
     return value
 
 
-def parse_literal_byte(argument):
+def parse_literal(argument, range):
     if (argument.startswith('0x')):
-        return parse_int(argument, 16, RANGE_BYTE)
+        return parse_int(argument, 16, range)
     if argument.startswith('0'):
-        return parse_int(argument, 7, RANGE_BYTE)
+        return parse_int(argument, 7, range)
 
-    return parse_int(argument, 10, RANGE_BYTE)
+    return parse_int(argument, 10, range)
+
+
+def parse_literal_byte(argument):
+    return parse_literal(argument, RANGE_BYTE)
 
 
 def parse_literal_word(argument):
-    if (argument.startswith('0x')):
-        return parse_int(argument, 16, WORD_RANGE)
-    if argument.startswith('0'):
-        return parse_int(argument, 7, WORD_RANGE)
-
-    return parse_int(argument, 10, WORD_RANGE)
+    return parse_literal(argument, WORD_RANGE)
 
 
 def no_arg(name, value):
@@ -155,6 +154,14 @@ def word_acc_op(name, mask):
     return encoder
 
 
+def calt(name):
+    def encoder(arguments):
+        taddr, = check_argument_count(name, arguments, 1)
+        return bytearray([parse_literal(taddr, range(0x80, 0xC0))])
+
+    return encoder
+
+
 instruction_table = {
     'nop': no_arg('nop', [0x00]),
     'ret': no_arg('ret', [0x08]),
@@ -210,6 +217,8 @@ instruction_table = {
     'offiw': iw_op('offiw', 0x55),
     'neiw': iw_op('neiw', 0x65),
     'eqiw': iw_op('eqiw', 0x75),
+
+    'calt': calt('calt'),
 }
 
 if __name__ == '__main__':
