@@ -140,10 +140,10 @@ def reg_acc_op(name, mask):
 
 def wr_word_op(name, mask):
     register_map = {
-        'sp': 0,
-        'bc': 1 << 4,
-        'de': 2 << 4,
-        'hl': 3 << 4,
+        'sp': 0x00,
+        'bc': 0x10,
+        'de': 0x20,
+        'hl': 0x30,
     }
 
     def encoder(arguments):
@@ -153,6 +153,24 @@ def wr_word_op(name, mask):
 
         address = parse_literal_word(address)
         return bytearray([mask | register_map[register]]) + address.to_bytes(2, byteorder='little')
+
+    return encoder
+
+
+def stack_op(name, mask):
+    register_map = {
+        'v': 0x00,
+        'bc': 0x10,
+        'de': 0x20,
+        'hl': 0x30,
+    }
+
+    def encoder(arguments):
+        register, = check_argument_count(name, arguments, 1)
+        if register not in register_map:
+            raise ParseError(f'unknown register {register} for {name}')
+
+        return bytearray([0x48, mask | register_map[register]])
 
     return encoder
 
@@ -243,6 +261,9 @@ instruction_table = {
     'rld': prefix(0x48, no_arg('rld', 0x38)),
     'rrd': prefix(0x48, no_arg('rrd', 0x39)),
     'per': prefix(0x48, no_arg('per', 0x3C)),
+
+    'push': stack_op('push', 0x0E),
+    'pop': stack_op('pop', 0x0F),
 
     'inx': high_4bit('inx', 0x02),
     'dcx': high_4bit('dcx', 0x03),
