@@ -49,6 +49,17 @@ def prefix(value, op_encoder):
     return encoder
 
 
+def define_bytes(arguments):
+    if not arguments:
+        raise ParseError(f'cannot define empty bytes')
+
+    result = bytearray()
+    for arg in arguments:
+        result.append(parse_literal_byte(arg))
+
+    return result
+
+
 def no_arg(name, value):
     def encoder(arguments):
         check_argument_count(name, arguments, 0)
@@ -395,6 +406,8 @@ def calf(name):
 
 
 instruction_table = {
+    'db': define_bytes,
+
     'nop': no_arg('nop', 0x00),
     'ret': no_arg('ret', 0x08),
     'rets': no_arg('ret', 0x18),
