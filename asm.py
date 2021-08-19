@@ -2,8 +2,18 @@ RANGE_BYTE = range(0, 1 << 8)
 WORD_RANGE = range(0, 1 << 16)
 
 
+class Context:
+    def __init__(self):
+        self.line = ''
+        self.line_number = 0
+        self.address = 0
+
+
 class ParseError(IOError):
     pass
+
+
+context = Context()
 
 
 def check_argument_count(name, arguments, size):
@@ -528,12 +538,17 @@ if __name__ == '__main__':
             if line.startswith('//'):
                 continue
 
+            context.line = line
+            context.line_number = line_number
+
             instruction, _, arguments = line.partition(' ')
             instruction = instruction.lower().strip()
             arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().split(','))))
 
             try:
                 result = instruction_table[instruction](arguments)
+                context.address += len(result)
+
                 for byte in result:
                     print(('0' + hex(byte).replace('0x', ''))[-2:], end=' ')
                 print()
