@@ -1,3 +1,6 @@
+from typing import Callable
+from typing import NamedTuple
+
 RANGE_BYTE = range(0, 1 << 8)
 WORD_RANGE = range(0, 1 << 16)
 
@@ -8,12 +11,21 @@ class Context:
         self.line_number = 0
         self.address = 0
 
+        self.labels = {}
+        self.patches = []
+
+        self.result = bytearray()
+
 
 class ParseError(IOError):
     pass
 
 
-context = Context()
+class Patch(NamedTuple):
+    offset: int
+    encoder: Callable
+    label: str
+    line_number: int
 
 
 def check_argument_count(name, arguments, size):
@@ -35,21 +47,37 @@ def parse_int(string, base, valid_range):
     return value
 
 
-def parse_literal(argument, range):
-    if (argument.startswith('0x')):
-        return parse_int(argument, 16, range)
-    if argument.startswith('0'):
-        return parse_int(argument, 7, range)
+def parse_literal(argument, range, encoder):
+    if argument.startswith('0x') or argument.startswith('-0x'):
+        return encoder(parse_int(argument, 16, range))
+    if argument.startswith('0') or argument.startswith('-0'):
+        return encoder(parse_int(argument, 7, range))
+    if argument.startswith(('-', '1', '2', '3', '4', '5', '6', '7', '8', '9')):
+        return encoder(parse_int(argument, 10, range))
+    if argument in context.labels:
+        if context.labels[argument] not in range:
+            raise ParseError(f'label {argument} not in {range}')
 
-    return parse_int(argument, 10, range)
+        return encoder(context.labels[argument])
+
+    # Add the patch to the patch set
+    context.patches.append(Patch(
+        offset=context.address,
+        encoder=encoder,
+        label=argument,
+        line_number=context.line_number,
+    ))
+
+    # And return a placeholder
+    return encoder(range[0])
 
 
 def parse_literal_byte(argument):
-    return parse_literal(argument, RANGE_BYTE)
+    return parse_literal(argument, RANGE_BYTE, lambda i: i.to_bytes(1, byteorder='little'))
 
 
 def parse_literal_word(argument):
-    return parse_literal(argument, WORD_RANGE)
+    return parse_literal(argument, WORD_RANGE, lambda i: i.to_bytes(2, byteorder='little'))
 
 
 def prefix(value, op_encoder):
@@ -65,7 +93,7 @@ def define_bytes(arguments):
 
     result = bytearray()
     for arg in arguments:
-        result.append(parse_literal_byte(arg))
+        result += parse_literal_byte(arg)
 
     return result
 
@@ -99,8 +127,7 @@ def high_4bit(name, mask):
 def data_tfr_op(name, mask):
     def encoder(arguments):
         address, = check_argument_count(name, arguments, 1)
-        address = parse_literal_word(address)
-        return bytearray([0x70, mask]) + address.to_bytes(2, byteorder='little')
+        return bytearray([0x70, mask]) + parse_literal_word(address)
 
     return encoder
 
@@ -108,7 +135,7 @@ def data_tfr_op(name, mask):
 def iw_op(name, mask):
     def encoder(arguments):
         waddress, byte = check_argument_count(name, arguments, 2)
-        return bytearray([mask, parse_literal_byte(waddress), parse_literal_byte(byte)])
+        return bytearray([mask]) + parse_literal_byte(waddress) + parse_literal_byte(byte)
 
     return encoder
 
@@ -116,7 +143,7 @@ def iw_op(name, mask):
 def wa_op(name, mask):
     def encoder(arguments):
         waddress, = check_argument_count(name, arguments, 1)
-        return bytearray([mask, parse_literal_byte(waddress)])
+        return bytearray([mask]) + parse_literal_byte(waddress)
 
     return encoder
 
@@ -192,8 +219,7 @@ def wr_word_op(name, mask):
         if register not in register_map:
             raise ParseError(f'unknown register {register} for {name}')
 
-        address = parse_literal_word(address)
-        return bytearray([mask | register_map[register]]) + address.to_bytes(2, byteorder='little')
+        return bytearray([mask | register_map[register]]) + parse_literal_word(address)
 
     return encoder
 
@@ -239,9 +265,9 @@ def imm_data_transfer(name, opcode):
             raise ParseError(f'unknown register {register} for {name}')
 
         if register == 'a':
-            return bytearray([0x06 | (opcode & 1) | ((opcode & 0x0E) << 3), parse_literal_byte(byte)])
+            return bytearray([0x06 | (opcode & 1) | ((opcode & 0x0E) << 3)]) + parse_literal_byte(byte)
 
-        return bytearray([0x64, (opcode << 3) | registers[register], parse_literal_byte(byte)])
+        return bytearray([0x64, (opcode << 3) | registers[register]]) + parse_literal_byte(byte)
 
     return encoder
 
@@ -326,14 +352,12 @@ def mov(name):
         # Second, assume register, address
         register, address = register_pair
         if register in registers:
-            address = parse_literal_word(address)
-            return bytearray([0x70, 0x00 | registers[register]]) + address.to_bytes(2, byteorder='little')
+            return bytearray([0x70, 0x00 | registers[register]]) + parse_literal_word(address)
 
         # Third, assume address, register
         address, register = register_pair
         if register in registers:
-            address = parse_literal_word(address)
-            return bytearray([0x70, 0x10 | registers[register]]) + address.to_bytes(2, byteorder='little')
+            return bytearray([0x70, 0x10 | registers[register]]) + parse_literal_word(address)
 
         # Give up
         raise ParseError(f'unknown arguments {register_pair} for {name}')
@@ -357,7 +381,7 @@ def mvi(name):
         if register not in registers:
             raise ParseError(f'unknown register {register} for {name}')
 
-        return bytearray([0x68 | registers[register], parse_literal_byte(immediate)])
+        return bytearray([0x68 | registers[register]]) + parse_literal_byte(immediate)
 
     return encoder
 
@@ -400,17 +424,29 @@ def skn(name):
 def calt(name):
     def encoder(arguments):
         taddr, = check_argument_count(name, arguments, 1)
-        return bytearray([parse_literal(taddr, range(0x80, 0xC0))])
+        return parse_literal(taddr, range(0x80, 0xC0), lambda i: i.to_bytes(1, byteorder='little'))
 
     return encoder
 
 
 def calf(name):
+    def address_encoder(far_address):
+        return bytearray([0x70 | (far_address >> 8), far_address & 0xFF])
+
     def encoder(arguments):
         faddr, = check_argument_count(name, arguments, 1)
-        faddr = parse_literal(faddr, range(0x800, 0x1000))
+        return parse_literal(faddr, range(0x800, 0x1000), address_encoder)
 
-        return bytearray([0x70 | (faddr >> 8), faddr & 0xFF])
+    return encoder
+
+
+def relative_word(name, opcode):
+    def address_encoder(address):
+        return bytearray([opcode]) + address.to_bytes(2, byteorder='little')
+
+    def encoder(arguments):
+        address, = check_argument_count(name, arguments, 1)
+        return parse_literal(address, WORD_RANGE, address_encoder)
 
     return encoder
 
@@ -525,10 +561,14 @@ instruction_table = {
     'mvi': mvi('mvi'),
     'calt': calt('calt'),
     'calf': calf('calf'),
+
+    'jmp': relative_word('jmp', 0x54),
+    'call': relative_word('jmp', 0x44),
 }
 
 if __name__ == '__main__':
-    with open('test.as', 'rt') as f, open('out.bin', 'wb') as out:
+    context = Context()
+    with open('jump_test.as', 'rt') as f, open('out.bin', 'wb') as out:
         for line_number, line in enumerate(f):
             line = line.strip()
             if not line:
@@ -538,22 +578,42 @@ if __name__ == '__main__':
             if line.startswith('//'):
                 continue
 
-            context.line = line
-            context.line_number = line_number
-
             instruction, _, arguments = line.partition(' ')
             instruction = instruction.lower().strip()
             arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().split(','))))
 
-            try:
-                result = instruction_table[instruction](arguments)
-                context.address += len(result)
+            context.line = line
+            context.line_number = line_number
 
-                for byte in result:
-                    print(('0' + hex(byte).replace('0x', ''))[-2:], end=' ')
-                print()
-                out.write(result)
-            except KeyError:
-                print(f"unknown instruction: {instruction}")
+            try:
+                if line.endswith(':'):
+                    label = line.rstrip(':')
+                    if label in context.labels:
+                        raise ParseError(f"cannot redefine label '{label}'")
+
+                    context.labels[label] = context.address
+                    continue
+
+                instruction, _, arguments = line.partition(' ')
+                instruction = instruction.lower().strip()
+                arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().split(','))))
+
+                try:
+                    result = instruction_table[instruction](arguments)
+                except KeyError:
+                    print(f"unknown instruction: {instruction}")
+
+                context.address += len(result)
+                context.result += result
             except ParseError as p:
-                print(f"Parse error on line {line_number}: {p}")
+                print(f"Parse error on line {line_number + 1}: {p}")
+
+        # 2nd pass: patch all forward-defined labels
+        for patch in context.patches:
+            try:
+                to_patch = patch.encoder(context.labels[patch.label])
+                context.result[patch.offset: patch.offset + len(to_patch)] = to_patch
+            except KeyError:
+                print(f"Parse error on line {patch.line_number + 1}: unknown label {patch.label}")
+
+        out.write(context.result)
