@@ -10,6 +10,7 @@ class Context:
     def __init__(self):
         self.line = ''
         self.line_number = 0
+        self.offset = 0
         self.address = 0
 
         self.labels = {}
@@ -18,6 +19,7 @@ class Context:
         self.result = bytearray()
 
     def emit(self, bytes):
+        self.offset += len(bytes)
         self.address += len(bytes)
         self.result += bytes
 
@@ -28,6 +30,7 @@ class ParseError(IOError):
 
 class Patch(NamedTuple):
     offset: int
+    address: int
     encoder: Callable
     label: str
     line_number: int
@@ -43,46 +46,52 @@ def check_argument_count(name, arguments, size):
 def parse_int(string, base, valid_range):
     try:
         value = int(string, base)
-    except ValueError as ve:
+    except ValueError:
         raise ParseError(f'invalid literal with base {base}: {string}')
 
-    if value not in valid_range:
+    if valid_range and value not in valid_range:
         raise ParseError(f'literal {string} ({value}) not in {valid_range}')
 
     return value
 
 
-def parse_literal(argument, range, encoder):
+def parse_literal(argument, encoder, valid_range=None, placeholder=None):
     if argument.startswith(('0x', '-0x')):
-        return encoder(parse_int(argument, 16, range))
+        return encoder(parse_int(argument, 16, valid_range))
     if argument.startswith(('0', '-0')):
-        return encoder(parse_int(argument, 7, range))
+        return encoder(parse_int(argument, 7, valid_range))
     if argument.startswith(('-', '1', '2', '3', '4', '5', '6', '7', '8', '9')):
-        return encoder(parse_int(argument, 10, range))
+        return encoder(parse_int(argument, 10, valid_range))
     if argument in context.labels:
-        if context.labels[argument] not in range:
-            raise ParseError(f'label {argument} not in {range}')
+        if valid_range and context.labels[argument] not in valid_range:
+            raise ParseError(f'label {argument} not in {valid_range}')
 
         return encoder(context.labels[argument])
 
     # Add the patch to the patch set
     context.patches.append(Patch(
-        offset=context.address,
+        offset=context.offset,
+        address=context.address,
         encoder=encoder,
         label=argument,
         line_number=context.line_number,
     ))
 
     # And return a placeholder
-    return encoder(range[0])
+    if placeholder is not None:
+        return placeholder
+    if valid_range:
+        return encoder(valid_range[0])
+
+    raise ValueError("must have one of range or placeholder")
 
 
 def parse_literal_byte(argument):
-    return parse_literal(argument, RANGE_BYTE, lambda i: i.to_bytes(1, byteorder='little'))
+    return parse_literal(argument, lambda i: i.to_bytes(1, byteorder='little'), RANGE_BYTE)
 
 
 def parse_literal_word(argument):
-    return parse_literal(argument, WORD_RANGE, lambda i: i.to_bytes(2, byteorder='little'))
+    return parse_literal(argument, lambda i: i.to_bytes(2, byteorder='little'), WORD_RANGE)
 
 
 def prefix(value, op_encoder):
@@ -444,7 +453,7 @@ def calt(name):
     def encoder(arguments):
         taddr, = check_argument_count(name, arguments, 1)
 
-        context.emit(parse_literal(taddr, range(0x80, 0xC0), lambda i: i.to_bytes(1, byteorder='little')))
+        context.emit(parse_literal(taddr, lambda i: i.to_bytes(1, byteorder='little'), range(0x80, 0xC0)))
 
     return encoder
 
@@ -456,7 +465,29 @@ def calf(name):
     def encoder(arguments):
         faddr, = check_argument_count(name, arguments, 1)
 
-        context.emit(parse_literal(faddr, range(0x800, 0x1000), address_encoder))
+        context.emit(parse_literal(faddr, address_encoder, range(0x800, 0x1000)))
+
+    return encoder
+
+
+def relative_byte(name):
+    JUMP_RANGE = range(-0xFF, 0x100)
+
+    def address_encoder(address):
+        diff = address - context.address
+        diff -= diff <= 0
+        if diff not in JUMP_RANGE:
+            raise ParseError(f'jump range ({diff}) not in {JUMP_RANGE}')
+
+        if diff < 0:
+            return bytearray([0x4F, diff + 0xFF])
+
+        return bytearray([0x4E, diff - 2])
+
+    def encoder(arguments):
+        raddr, = check_argument_count(name, arguments, 1)
+
+        context.emit(parse_literal(raddr, address_encoder, placeholder=bytearray([0x00, 0x00])))
 
     return encoder
 
@@ -467,6 +498,28 @@ def relative_word(name, opcode):
 
         context.emit(bytearray([opcode]))
         context.emit(parse_literal_word(address))
+
+    return encoder
+
+
+def relative_jump(name):
+    JUMP_RANGE = range(-0x1F, 0x20)
+
+    def address_encoder(address):
+        diff = address - context.address
+        diff -= diff <= 0
+        if diff not in JUMP_RANGE:
+            raise ParseError(f'jump range ({diff}) not in {JUMP_RANGE}')
+
+        if diff < 0:
+            return bytearray([0x100 + diff])
+
+        return bytearray([0xBF + diff])
+
+    def encoder(arguments):
+        raddr, = check_argument_count(name, arguments, 1)
+
+        context.emit(parse_literal(raddr, address_encoder, placeholder=bytearray([0])))
 
     return encoder
 
@@ -582,12 +635,17 @@ instruction_table = {
     'calt': calt('calt'),
     'calf': calf('calf'),
 
+    'jr': relative_jump('jr'),
+    'jre': relative_byte('jre'),
     'jmp': relative_word('jmp', 0x54),
     'call': relative_word('jmp', 0x44),
 }
 
 if __name__ == '__main__':
+    BASE_ADDRESS = 0x8000
+
     context = Context()
+    context.address = BASE_ADDRESS
     with open('jump_test.as', 'rt') as f, open('out.bin', 'wb') as out:
         for line_number, line in enumerate(f):
             line = line.strip()
@@ -626,9 +684,15 @@ if __name__ == '__main__':
         # 2nd pass: patch all forward-defined labels
         for patch in context.patches:
             try:
+                context.offset = patch.offset
+                context.address = patch.address
+                context.line_number = patch.line_number
+
                 to_patch = patch.encoder(context.labels[patch.label])
                 context.result[patch.offset: patch.offset + len(to_patch)] = to_patch
             except KeyError:
                 print(f"Parse error on line {patch.line_number + 1}: unknown label {patch.label}")
+            except ParseError as p:
+                print(f"Patch error on line {patch.line_number + 1}: {p}")
 
         out.write(context.result)
