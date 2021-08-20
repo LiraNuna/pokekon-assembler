@@ -6,6 +6,33 @@ RANGE_BYTE = range(0, 1 << 8)
 WORD_RANGE = range(0, 1 << 16)
 
 
+class CaseInsensitiveDict(dict):
+    @classmethod
+    def fix_key(cls, k):
+        if isinstance(k, str):
+            return k.lower()
+        if isinstance(k, tuple):
+            return tuple(map(cls.fix_key, k))
+
+        raise ValueError(f"Key {k} is not supported")
+
+    def __init__(self, data=None):
+        super().__init__()
+        if data is None:
+            data = {}
+        for key, val in data.items():
+            self[key] = val
+
+    def __contains__(self, key):
+        return super().__contains__(self.fix_key(key))
+
+    def __setitem__(self, key, value):
+        super().__setitem__(self.fix_key(key), value)
+
+    def __getitem__(self, key):
+        return super().__getitem__(self.fix_key(key))
+
+
 class Context:
     def __init__(self):
         self.line = ''
@@ -127,12 +154,12 @@ def no_arg(name, value):
 
 
 def high_4bit(name, mask):
-    register_map = {
+    register_map = CaseInsensitiveDict({
         'sp': 0x00,
         'bc': 0x10,
         'de': 0x20,
         'hl': 0x30,
-    }
+    })
 
     def encoder(arguments):
         register, = check_argument_count(name, arguments, 1)
@@ -175,11 +202,11 @@ def wa_op(name, mask):
 
 
 def abc_op(name, mask):
-    registers = {
+    registers = CaseInsensitiveDict({
         'a': 0x01,
         'b': 0x02,
         'c': 0x03,
-    }
+    })
 
     def encoder(arguments):
         register, = check_argument_count(name, arguments, 1)
@@ -203,7 +230,7 @@ def acc_op(name, mask):
 
 
 def reg_acc_op(name, mask):
-    registers = {
+    registers = CaseInsensitiveDict({
         ('v', 'a'): 0x00,
         ('a', 'a'): 0x01,
         ('b', 'a'): 0x02,
@@ -220,7 +247,7 @@ def reg_acc_op(name, mask):
         ('a', 'e'): 0x85,
         ('a', 'h'): 0x86,
         ('a', 'l'): 0x87,
-    }
+    })
 
     def encoder(arguments):
         regs = tuple(check_argument_count(name, arguments, 2))
@@ -233,12 +260,12 @@ def reg_acc_op(name, mask):
 
 
 def wr_word_op(name, mask):
-    register_map = {
+    register_map = CaseInsensitiveDict({
         'sp': 0x00,
         'bc': 0x10,
         'de': 0x20,
         'hl': 0x30,
-    }
+    })
 
     def encoder(arguments):
         register, address = check_argument_count(name, arguments, 2)
@@ -252,12 +279,12 @@ def wr_word_op(name, mask):
 
 
 def stack_op(name, mask):
-    register_map = {
+    register_map = CaseInsensitiveDict({
         'v': 0x00,
         'bc': 0x10,
         'de': 0x20,
         'hl': 0x30,
-    }
+    })
 
     def encoder(arguments):
         register, = check_argument_count(name, arguments, 1)
@@ -270,7 +297,7 @@ def stack_op(name, mask):
 
 
 def imm_data_transfer(name, opcode):
-    registers = {
+    registers = CaseInsensitiveDict({
         'v': 0x00,
         'a': 0x01,
         'b': 0x02,
@@ -284,7 +311,7 @@ def imm_data_transfer(name, opcode):
         'pb': 0x81,
         'pc': 0x82,
         'mk': 0x83,
-    }
+    })
 
     def encoder(arguments):
         register, byte = check_argument_count(name, arguments, 2)
@@ -302,7 +329,7 @@ def imm_data_transfer(name, opcode):
 
 
 def word_acc_op(name, mask):
-    registers = {
+    registers = CaseInsensitiveDict({
         'bc': 0x01,
         'de': 0x02,
         'hl': 0x03,
@@ -310,7 +337,7 @@ def word_acc_op(name, mask):
         'hl+': 0x05,
         'de-': 0x06,
         'hl-': 0x07,
-    }
+    })
 
     def encoder(arguments):
         register, = check_argument_count(name, arguments, 1)
@@ -323,7 +350,7 @@ def word_acc_op(name, mask):
 
 
 def mov(name):
-    registers = {
+    registers = CaseInsensitiveDict({
         'v': 0x68,
         'a': 0x69,
         'b': 0x6A,
@@ -332,9 +359,9 @@ def mov(name):
         'e': 0x6D,
         'h': 0x6E,
         'l': 0x6F,
-    }
+    })
 
-    register_pairs = {
+    register_pairs = CaseInsensitiveDict({
         ('a', 'b'): [0x0A],
         ('a', 'c'): [0x0B],
         ('a', 'd'): [0x0C],
@@ -370,7 +397,7 @@ def mov(name):
         ('tm1', 'a'): [0x4D, 0xC7],
         ('s', 'a'): [0x4D, 0xC8],
         ('tmm', 'a'): [0x4D, 0xC9],
-    }
+    })
 
     def encoder(arguments):
         # First, assume reg, reg
@@ -399,7 +426,7 @@ def mov(name):
 
 
 def mvi(name):
-    registers = {
+    registers = CaseInsensitiveDict({
         'a': 0x01,
         'b': 0x02,
         'c': 0x03,
@@ -407,7 +434,7 @@ def mvi(name):
         'e': 0x05,
         'h': 0x06,
         'l': 0x07,
-    }
+    })
 
     def encoder(arguments):
         register, immediate = check_argument_count(name, arguments, 2)
@@ -421,13 +448,13 @@ def mvi(name):
 
 
 def sknit(name):
-    irqs = {
+    irqs = CaseInsensitiveDict({
         'f0': 0x10,
         'ft': 0x11,
         'f1': 0x12,
         'f2': 0x13,
         'fs': 0x14,
-    }
+    })
 
     def encoder(arguments):
         irq, = check_argument_count(name, arguments, 1)
@@ -440,10 +467,10 @@ def sknit(name):
 
 
 def skn(name):
-    flags = {
+    flags = CaseInsensitiveDict({
         'cy': 0x1A,
         'z': 0x1C,
-    }
+    })
 
     def encoder(arguments):
         flag, = check_argument_count(name, arguments, 1)
@@ -530,7 +557,7 @@ def relative_jump(name):
     return encoder
 
 
-instruction_table = {
+instruction_table = CaseInsensitiveDict({
     'db': define_bytes,
     'dw': define_words,
 
@@ -646,7 +673,7 @@ instruction_table = {
     'jre': relative_byte('jre'),
     'jmp': relative_word('jmp', 0x54),
     'call': relative_word('jmp', 0x44),
-}
+})
 
 if __name__ == '__main__':
     BASE_ADDRESS = 0x4000
@@ -662,8 +689,8 @@ if __name__ == '__main__':
                 line, _, _ = line.partition(comment_prefix)
 
             instruction, _, arguments = line.strip().partition(' ')
-            instruction = instruction.lower().strip()
-            arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().split(','))))
+            instruction = instruction.strip()
+            arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.split(','))))
 
             context.line = line
             context.line_number = line_number
