@@ -708,7 +708,7 @@ if __name__ == '__main__':
                 try:
                     instruction_table[instruction](arguments)
                 except KeyError:
-                    print(f"unknown instruction: {instruction}")
+                    raise ParseError(f"unknown instruction: {instruction}")
             except ParseError as p:
                 print(f"Parse error on line {line_number + 1}: {p}")
 
