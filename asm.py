@@ -186,6 +186,7 @@ def iw_op(name, mask):
         waddress, byte = check_argument_count(name, arguments, 2)
 
         context.emit(bytearray([mask]))
+        context.emit(parse_literal_byte(waddress))
         context.emit(parse_literal_byte(byte))
 
     return encoder
