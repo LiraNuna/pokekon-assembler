@@ -96,7 +96,8 @@ def parse_literal_word(argument):
 
 def prefix(value, op_encoder):
     def encoder(arguments):
-        return bytearray([value]) + op_encoder(arguments)
+        context.emit(bytearray([value]))
+        op_encoder(arguments)
 
     return encoder
 
