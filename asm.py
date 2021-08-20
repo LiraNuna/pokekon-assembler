@@ -648,7 +648,7 @@ instruction_table = {
 }
 
 if __name__ == '__main__':
-    BASE_ADDRESS = 0x8000
+    BASE_ADDRESS = 0x4000
 
     context = Context()
     context.address = BASE_ADDRESS
