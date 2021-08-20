@@ -1,6 +1,7 @@
 from typing import Callable
 from typing import NamedTuple
 
+COMMENT_PREFIXES = ('#', '//', ';')
 RANGE_BYTE = range(0, 1 << 8)
 WORD_RANGE = range(0, 1 << 16)
 
@@ -52,9 +53,9 @@ def parse_int(string, base, valid_range):
 
 
 def parse_literal(argument, range, encoder):
-    if argument.startswith('0x') or argument.startswith('-0x'):
+    if argument.startswith(('0x', '-0x')):
         return encoder(parse_int(argument, 16, range))
-    if argument.startswith('0') or argument.startswith('-0'):
+    if argument.startswith(('0', '-0')):
         return encoder(parse_int(argument, 7, range))
     if argument.startswith(('-', '1', '2', '3', '4', '5', '6', '7', '8', '9')):
         return encoder(parse_int(argument, 10, range))
@@ -590,12 +591,10 @@ if __name__ == '__main__':
     with open('jump_test.as', 'rt') as f, open('out.bin', 'wb') as out:
         for line_number, line in enumerate(f):
             line = line.strip()
-            if not line:
+            if not line or line.startswith(COMMENT_PREFIXES):
                 continue
-            if line.startswith('#'):
-                continue
-            if line.startswith('//'):
-                continue
+            for comment_prefix in COMMENT_PREFIXES:
+                line, _, _ = line.partition(comment_prefix)
 
             instruction, _, arguments = line.partition(' ')
             instruction = instruction.lower().strip()
