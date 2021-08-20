@@ -16,6 +16,10 @@ class Context:
 
         self.result = bytearray()
 
+    def emit(self, bytes):
+        self.address += len(bytes)
+        self.result += bytes
+
 
 class ParseError(IOError):
     pass
@@ -95,13 +99,13 @@ def define_bytes(arguments):
     for arg in arguments:
         result += parse_literal_byte(arg)
 
-    return result
+    context.emit(result)
 
 
 def no_arg(name, value):
     def encoder(arguments):
         check_argument_count(name, arguments, 0)
-        return bytearray([value])
+        context.emit(bytearray([value]))
 
     return encoder
 
@@ -119,7 +123,7 @@ def high_4bit(name, mask):
         if register not in register_map:
             raise ParseError(f'unknown register {register} for {name}')
 
-        return bytearray([mask | register_map[register]])
+        context.emit(bytearray([mask | register_map[register]]))
 
     return encoder
 
@@ -127,7 +131,9 @@ def high_4bit(name, mask):
 def data_tfr_op(name, mask):
     def encoder(arguments):
         address, = check_argument_count(name, arguments, 1)
-        return bytearray([0x70, mask]) + parse_literal_word(address)
+
+        context.emit(bytearray([0x70, mask]))
+        context.emit(parse_literal_word(address))
 
     return encoder
 
@@ -135,7 +141,9 @@ def data_tfr_op(name, mask):
 def iw_op(name, mask):
     def encoder(arguments):
         waddress, byte = check_argument_count(name, arguments, 2)
-        return bytearray([mask]) + parse_literal_byte(waddress) + parse_literal_byte(byte)
+
+        context.emit(bytearray([mask]))
+        context.emit(parse_literal_byte(byte))
 
     return encoder
 
@@ -143,7 +151,9 @@ def iw_op(name, mask):
 def wa_op(name, mask):
     def encoder(arguments):
         waddress, = check_argument_count(name, arguments, 1)
-        return bytearray([mask]) + parse_literal_byte(waddress)
+
+        context.emit(bytearray([mask]))
+        context.emit(parse_literal_byte(waddress))
 
     return encoder
 
@@ -160,7 +170,7 @@ def abc_op(name, mask):
         if register not in registers:
             raise ParseError(f'unknown register {register} for {name}')
 
-        return bytearray([mask | registers[register]])
+        context.emit(bytearray([mask | registers[register]]))
 
     return encoder
 
@@ -171,7 +181,7 @@ def acc_op(name, mask):
         if register != 'a':
             raise ParseError(f'unknown register {register} for {name}')
 
-        return bytearray([mask])
+        context.emit(bytearray([mask]))
 
     return encoder
 
@@ -201,7 +211,7 @@ def reg_acc_op(name, mask):
         if regs not in registers:
             raise ParseError(f'invalid argument pair {regs} for {name}')
 
-        return bytearray([0x60, mask | registers[regs]])
+        context.emit(bytearray([0x60, mask | registers[regs]]))
 
     return encoder
 
@@ -219,7 +229,8 @@ def wr_word_op(name, mask):
         if register not in register_map:
             raise ParseError(f'unknown register {register} for {name}')
 
-        return bytearray([mask | register_map[register]]) + parse_literal_word(address)
+        context.emit(bytearray([mask | register_map[register]]))
+        context.emit(parse_literal_word(address))
 
     return encoder
 
@@ -237,7 +248,7 @@ def stack_op(name, mask):
         if register not in register_map:
             raise ParseError(f'unknown register {register} for {name}')
 
-        return bytearray([0x48, mask | register_map[register]])
+        context.emit(bytearray([0x48, mask | register_map[register]]))
 
     return encoder
 
@@ -265,9 +276,11 @@ def imm_data_transfer(name, opcode):
             raise ParseError(f'unknown register {register} for {name}')
 
         if register == 'a':
-            return bytearray([0x06 | (opcode & 1) | ((opcode & 0x0E) << 3)]) + parse_literal_byte(byte)
-
-        return bytearray([0x64, (opcode << 3) | registers[register]]) + parse_literal_byte(byte)
+            context.emit(bytearray([0x06 | (opcode & 1) | ((opcode & 0x0E) << 3)]))
+            context.emit(parse_literal_byte(byte))
+        else:
+            context.emit(bytearray([0x64, (opcode << 3) | registers[register]]))
+            context.emit(parse_literal_byte(byte))
 
     return encoder
 
@@ -288,7 +301,7 @@ def word_acc_op(name, mask):
         if register not in registers:
             raise ParseError(f'unknown register {register} for {name}')
 
-        return bytearray([mask | registers[register]])
+        context.emit(bytearray([mask | registers[register]]))
 
     return encoder
 
@@ -352,12 +365,16 @@ def mov(name):
         # Second, assume register, address
         register, address = register_pair
         if register in registers:
-            return bytearray([0x70, 0x00 | registers[register]]) + parse_literal_word(address)
+            context.emit(bytearray([0x70, 0x00 | registers[register]]))
+            context.emit(parse_literal_word(address))
+            return
 
         # Third, assume address, register
         address, register = register_pair
         if register in registers:
-            return bytearray([0x70, 0x10 | registers[register]]) + parse_literal_word(address)
+            context.emit(bytearray([0x70, 0x10 | registers[register]]))
+            context.emit(parse_literal_word(address))
+            return
 
         # Give up
         raise ParseError(f'unknown arguments {register_pair} for {name}')
@@ -381,7 +398,8 @@ def mvi(name):
         if register not in registers:
             raise ParseError(f'unknown register {register} for {name}')
 
-        return bytearray([0x68 | registers[register]]) + parse_literal_byte(immediate)
+        context.emit(bytearray([0x68 | registers[register]]))
+        context.emit(parse_literal_byte(immediate))
 
     return encoder
 
@@ -400,7 +418,7 @@ def sknit(name):
         if irq not in irqs:
             raise ParseError(f'unknown irq {irq} for {name}')
 
-        return bytearray([irqs[irq]])
+        context.emit(bytearray([irqs[irq]]))
 
     return encoder
 
@@ -416,7 +434,7 @@ def skn(name):
         if flag not in flags:
             raise ParseError(f'unknown irq {flag} for {name}')
 
-        return bytearray([flags[flag]])
+        context.emit(bytearray([flags[flag]]))
 
     return encoder
 
@@ -424,7 +442,8 @@ def skn(name):
 def calt(name):
     def encoder(arguments):
         taddr, = check_argument_count(name, arguments, 1)
-        return parse_literal(taddr, range(0x80, 0xC0), lambda i: i.to_bytes(1, byteorder='little'))
+
+        context.emit(parse_literal(taddr, range(0x80, 0xC0), lambda i: i.to_bytes(1, byteorder='little')))
 
     return encoder
 
@@ -435,18 +454,18 @@ def calf(name):
 
     def encoder(arguments):
         faddr, = check_argument_count(name, arguments, 1)
-        return parse_literal(faddr, range(0x800, 0x1000), address_encoder)
+
+        context.emit(parse_literal(faddr, range(0x800, 0x1000), address_encoder))
 
     return encoder
 
 
 def relative_word(name, opcode):
-    def address_encoder(address):
-        return bytearray([opcode]) + address.to_bytes(2, byteorder='little')
-
     def encoder(arguments):
         address, = check_argument_count(name, arguments, 1)
-        return parse_literal(address, WORD_RANGE, address_encoder)
+
+        context.emit(bytearray([opcode]))
+        context.emit(parse_literal_word(address))
 
     return encoder
 
@@ -599,12 +618,9 @@ if __name__ == '__main__':
                 arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().split(','))))
 
                 try:
-                    result = instruction_table[instruction](arguments)
+                    instruction_table[instruction](arguments)
                 except KeyError:
                     print(f"unknown instruction: {instruction}")
-
-                context.address += len(result)
-                context.result += result
             except ParseError as p:
                 print(f"Parse error on line {line_number + 1}: {p}")
 
