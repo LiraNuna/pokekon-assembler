@@ -105,11 +105,16 @@ def define_bytes(arguments):
     if not arguments:
         raise ParseError(f'cannot define empty bytes')
 
-    result = bytearray()
     for arg in arguments:
-        result += parse_literal_byte(arg)
+        context.emit(parse_literal_byte(arg))
 
-    context.emit(result)
+
+def define_words(arguments):
+    if not arguments:
+        raise ParseError(f'cannot define empty words')
+
+    for arg in arguments:
+        context.emit(parse_literal_word(arg))
 
 
 def no_arg(name, value):
@@ -526,6 +531,7 @@ def relative_jump(name):
 
 instruction_table = {
     'db': define_bytes,
+    'dw': define_words,
 
     'nop': no_arg('nop', 0x00),
     'ret': no_arg('ret', 0x08),
