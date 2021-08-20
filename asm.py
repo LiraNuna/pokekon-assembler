@@ -661,7 +661,7 @@ if __name__ == '__main__':
             for comment_prefix in COMMENT_PREFIXES:
                 line, _, _ = line.partition(comment_prefix)
 
-            instruction, _, arguments = line.partition(' ')
+            instruction, _, arguments = line.strip().partition(' ')
             instruction = instruction.lower().strip()
             arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().split(','))))
 
@@ -676,10 +676,6 @@ if __name__ == '__main__':
 
                     context.labels[label] = context.address
                     continue
-
-                instruction, _, arguments = line.partition(' ')
-                instruction = instruction.lower().strip()
-                arguments = list(map(lambda arg: arg.strip(), filter(None, arguments.lower().split(','))))
 
                 try:
                     instruction_table[instruction](arguments)
