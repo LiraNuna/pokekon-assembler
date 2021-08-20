@@ -697,8 +697,8 @@ if __name__ == '__main__':
             context.line_number = line_number
 
             try:
-                if line.endswith(':'):
-                    label = line.rstrip(':')
+                if instruction.endswith(':') and not arguments:
+                    label = instruction.rstrip(':')
                     if label in context.labels:
                         raise ParseError(f"cannot redefine label '{label}'")
 
