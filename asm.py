@@ -484,10 +484,14 @@ def skn(name):
 
 
 def calt(name):
+    def address_encoder(address):
+        address = 0x80 | ((address & 0x3f) >> 1)
+        return address.to_bytes(1, byteorder='little')
+
     def encoder(arguments):
         taddr, = check_argument_count(name, arguments, 1)
 
-        context.emit(parse_literal(taddr, lambda i: i.to_bytes(1, byteorder='little'), range(0x80, 0xC0)))
+        context.emit(parse_literal(taddr, address_encoder, range(0x80, 0xC0)))
 
     return encoder
 
