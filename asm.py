@@ -404,7 +404,8 @@ def mov(name):
         # First, assume reg, reg
         register_pair = tuple(check_argument_count(name, arguments, 2))
         if register_pair in register_pairs:
-            return bytearray(register_pairs[register_pair])
+            context.emit(bytearray(register_pairs[register_pair]))
+            return
 
         # Second, assume register, address
         register, address = register_pair
