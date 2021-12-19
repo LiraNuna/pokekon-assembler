@@ -398,6 +398,7 @@ def mov(name):
         ('tm1', 'a'): [0x4D, 0xC7],
         ('s', 'a'): [0x4D, 0xC8],
         ('tmm', 'a'): [0x4D, 0xC9],
+        ('sm', 'a'): [0x4D, 0xCA],
     })
 
     def encoder(arguments):
