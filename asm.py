@@ -319,7 +319,7 @@ def imm_data_transfer(name, opcode):
         if register not in registers:
             raise ParseError(f'unknown register {register} for {name}')
 
-        if register == 'a':
+        if register in ('a', 'A'):
             context.emit(bytearray([0x06 | (opcode & 1) | ((opcode & 0x0E) << 3)]))
             context.emit(parse_literal_byte(byte))
         else:
