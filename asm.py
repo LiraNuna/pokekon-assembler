@@ -222,7 +222,7 @@ def abc_op(name, mask):
 def acc_op(name, mask):
     def encoder(arguments):
         register, = check_argument_count(name, arguments, 1)
-        if register != 'a':
+        if register not in {'a', 'A'}:
             raise ParseError(f'unknown register {register} for {name}')
 
         context.emit(bytearray([mask]))
@@ -319,7 +319,7 @@ def imm_data_transfer(name, opcode):
         if register not in registers:
             raise ParseError(f'unknown register {register} for {name}')
 
-        if register in ('a', 'A'):
+        if register in {'a', 'A'}:
             context.emit(bytearray([0x06 | (opcode & 1) | ((opcode & 0x0E) << 3)]))
             context.emit(parse_literal_byte(byte))
         else:
