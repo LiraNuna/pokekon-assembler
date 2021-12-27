@@ -281,7 +281,7 @@ def wr_word_op(name, mask):
 
 def stack_op(name, mask):
     register_map = CaseInsensitiveDict({
-        'v': 0x00,
+        'va': 0x00,
         'bc': 0x10,
         'de': 0x20,
         'hl': 0x30,
