@@ -1,3 +1,4 @@
+import sys
 from typing import Callable
 from typing import NamedTuple
 
@@ -687,7 +688,7 @@ if __name__ == '__main__':
 
     context = Context()
     context.address = BASE_ADDRESS
-    with open('jump_test.as', 'rt') as f, open('out.bin', 'wb') as out:
+    with open(sys.argv[1], 'rt') as f, open(sys.argv[2], 'wb') as out:
         for line_number, line in enumerate(f):
             line = line.strip()
             if not line or line.startswith(COMMENT_PREFIXES):
